@@ -1,10 +1,25 @@
+from ansimarkup import parse
+
 from src.token import Token, TokenType
+
+
+class LexerError:
+    def __init__(self, message: str) -> None:
+        self.message: str = message
+
+    def __repr__(self) -> str:
+        return parse(f"<red>Lexer Error</red>: {self.message}")
 
 
 class Lexer:
     def __init__(self, source: str) -> None:
         self.source: str = source
         self.pos: int = 0
+
+        self.errors: list[LexerError] = []
+
+    def add_error(self, error: LexerError) -> None:
+        self.errors.append(error)
 
     # return true if the position goes beyond what the source code actually is
     def is_oob(self) -> bool:
@@ -39,7 +54,7 @@ class Lexer:
     # 1"2"34
     # 12"3"4
     # 123"4"
-    # 1234" "
+    # 1234" "  <- STOP
     def handle_number(self) -> Token | None:
         char = self.current()
 
@@ -89,7 +104,9 @@ class Lexer:
                 tokens.append(tok)
                 continue
 
-            print(f'Unknown token "{self.current()}" at position {self.pos}')
+            self.add_error(
+                LexerError(f'Unknown token "{self.current()}" at position {self.pos}')
+            )
             self.advance()
 
         return tokens
