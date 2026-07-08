@@ -4,7 +4,7 @@ import src.lexer as lx
 
 
 def main():
-    lexer = lx.Lexer(source="1.67.7")
+    lexer = lx.Lexer(source="3 -= 3")
     pprint(lexer.get_tokens())
 
     for err in lexer.errors:

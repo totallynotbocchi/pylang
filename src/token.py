@@ -4,6 +4,12 @@ from enum import Enum, auto
 class TokenType(Enum):
     NUMBER = auto()
 
+    BIN_OPERATOR = auto()
+    BIN_OPERATOR_EQUAL = auto()
+
+    LOG_OPERATOR = auto()
+    LOG_OPERATOR_EQUAL = auto()
+
 
 class Token:
     def __init__(self, value: str, type: TokenType) -> None:
