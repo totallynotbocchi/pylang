@@ -4,11 +4,16 @@ from enum import Enum, auto
 class TokenType(Enum):
     NUMBER = auto()
 
-    BIN_OPERATOR = auto()
-    BIN_OPERATOR_EQUAL = auto()
+    PLUS = auto()
+    MINUS = auto()
+    TIMES = auto()
+    DIV = auto()
 
-    LOG_OPERATOR = auto()
-    LOG_OPERATOR_EQUAL = auto()
+    EQUAL = auto()
+    PLUS_EQUAL = auto()
+    MINUS_EQUAL = auto()
+    TIMES_EQUAL = auto()
+    DIV_EQUAL = auto()
 
 
 class Token:

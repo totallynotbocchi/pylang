@@ -2,8 +2,20 @@ from ansimarkup import parse
 
 from src.token import Token, TokenType
 
-BASE_OPERATORS = ["+", "-", "/", "*"]
-LOGICAL_OPERATORS = [">", "<", "="]
+SINGLE_CHAR_OPS = {
+    "+": TokenType.PLUS,
+    "-": TokenType.MINUS,
+    "*": TokenType.TIMES,
+    "/": TokenType.DIV,
+    "=": TokenType.EQUAL,
+}
+
+DOUBLE_CHAR_OPS = {
+    "+=": TokenType.PLUS_EQUAL,
+    "-=": TokenType.MINUS_EQUAL,
+    "*=": TokenType.TIMES_EQUAL,
+    "/=": TokenType.DIV_EQUAL,
+}
 
 
 class LexerError:
@@ -73,7 +85,9 @@ class Lexer:
             # stop on "." if we already have a floating point number
             if used_float_point and char == ".":
                 break
-            elif not used_float_point and char == ".":
+
+            # set the floating point dot so it wont allow for "2.2.2" later
+            if char == ".":
                 used_float_point = True
 
             # append to the number being built
@@ -92,38 +106,37 @@ class Lexer:
         return tok
 
     def handle_operator(self) -> Token | None:
-        char = self.current()
+        char = self.current()  # first character of an operator
 
-        if char not in BASE_OPERATORS and char not in LOGICAL_OPERATORS:
+        # skip if end
+        if char is None:
             return None
 
-        tok: Token | None = None
+        self.advance()  # eat the first operator character
+        next = self.current() or ""  # second character of the operator
+        self.advance()  # eat the second character operator (temporarily)
 
-        # eat the current operator cus we alr have something valid
-        self.advance()
-        next = self.current()
+        # combined substring
+        op: str = char + next
 
-        # check for operators like +=, -= or etc.
-        if char in BASE_OPERATORS and next == "=":
-            op = char + next
-            tok = Token(value=op, type=TokenType.BIN_OPERATOR_EQUAL)
-            self.advance()  # eat the equals symbol
+        # check for double ops like +=, == first
+        toktype = DOUBLE_CHAR_OPS.get(op)
+        if toktype is not None:
+            tok = Token(value=op, type=toktype)
+            return tok
 
-        # check for operators like <=, == or etc
-        elif char in LOGICAL_OPERATORS and next == "=":
-            op = char + next
-            tok = Token(value=op, type=TokenType.LOG_OPERATOR_EQUAL)
-            self.advance()  # eat the equals symbol
+        # undo the eating of the second character because
+        # the operator could only be a single char, not double
+        self.advance(-1)
 
-        # if its a mere +, - or etc.
-        elif char in BASE_OPERATORS:
-            tok = Token(value=char, type=TokenType.BIN_OPERATOR)
+        toktype = SINGLE_CHAR_OPS.get(char)
+        if toktype is not None:
+            tok = Token(value=char, type=toktype)
+            return tok
 
-        # if its a mere <, > or etc.
-        elif char in LOGICAL_OPERATORS:
-            tok = Token(value=char, type=TokenType.LOG_OPERATOR)
-
-        return tok  # remember, it can be None or Token
+        # undo the eating of all characters because at this point it isnt an operator
+        self.advance(-1)
+        return None
 
     # the "main" function of the lexer
     def get_tokens(self) -> list[Token]:
