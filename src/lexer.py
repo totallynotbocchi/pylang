@@ -1,6 +1,10 @@
+import logging
+
 from ansimarkup import parse
 
 from src.token import Token, TokenType
+
+logging.basicConfig(level=logging.DEBUG)
 
 SINGLE_CHAR_OPS = {
     "+": TokenType.PLUS,
@@ -18,7 +22,7 @@ DOUBLE_CHAR_OPS = {
 }
 
 
-class LexerError:
+class LexerError(Exception):
     def __init__(self, message: str) -> None:
         self.message: str = message
 
@@ -74,18 +78,18 @@ class Lexer:
         char = self.current()
 
         # return if there are no valid characters
-        if char is None or not char.isdigit():
+        if char is None or not char.isdecimal():
             return None
 
         whole_number: list[str] = []
         used_float_point = False
 
-        # loop continously until theres no numeric value, or a dot for floats
-        while char.isdigit() or char == ".":
-            # stop on "." if we already have a floating point number
+        # loop continously until theres no numeric value, no dot for floats
+        # or no characters
+        while char is not None and (char.isdigit() or char == "."):
+            # stop on "." if we alr have a floating point number
             if used_float_point and char == ".":
                 break
-
             # set the floating point dot so it wont allow for "2.2.2" later
             if char == ".":
                 used_float_point = True
@@ -98,8 +102,6 @@ class Lexer:
 
             # get the new current character
             char = self.current()
-            if char is None:  # stop if we ran out of characters now
-                break
 
         # build token
         tok = Token(value="".join(whole_number), type=TokenType.NUMBER)
@@ -112,34 +114,49 @@ class Lexer:
         if char is None:
             return None
 
-        self.advance()  # eat the first operator character
-        next = self.current() or ""  # second character of the operator
-        self.advance()  # eat the second character operator (temporarily)
+        next_char = self.peek() or ""  # second character of the operator
 
         # combined substring
-        op: str = char + next
+        op: str = char + next_char
 
         # check for double ops like +=, == first
         toktype = DOUBLE_CHAR_OPS.get(op)
         if toktype is not None:
+            self.advance(2)  # eat the two numbers
             tok = Token(value=op, type=toktype)
             return tok
 
-        # undo the eating of the second character because
-        # the operator could only be a single char, not double
-        self.advance(-1)
-
+        # check for single ops (on char, not on op anymore)
         toktype = SINGLE_CHAR_OPS.get(char)
         if toktype is not None:
+            self.advance()
             tok = Token(value=char, type=toktype)
             return tok
 
-        # undo the eating of all characters because at this point it isnt an operator
-        self.advance(-1)
         return None
+
+    def handle_identf(self) -> Token | None:
+        char = self.current()
+
+        if char is None or not char.isidentifier():
+            return None
+
+        identf: list[str] = []
+        while char is not None and char.isidentifier():
+            identf.append(char)
+
+            self.advance()
+
+            char = self.current()
+
+        # return the identifier we made
+        tok = Token(value="".join(identf), type=TokenType.IDENTF)
+        return tok
 
     # the "main" function of the lexer
     def get_tokens(self) -> list[Token]:
+        logging.info(f"Lexing code:\n```\n{self.source}\n```")
+
         tokens: list[Token] = []
 
         while not self.is_oob():
@@ -148,21 +165,28 @@ class Lexer:
                 self.advance()
                 continue
 
-            # handle numbers
-            tok = self.handle_number()
-            if tok is not None:
-                tokens.append(tok)
-                continue
+            # try all the different possible cases,
+            # all of the functions return a token if they match, or None if they dont
+            tests = [self.handle_number, self.handle_operator, self.handle_identf]
+            succeeded = False
 
-            # handle operators
-            tok = self.handle_operator()
-            if tok is not None:
-                tokens.append(tok)
-                continue
+            for test in tests:
+                possible_token: Token | None = test()
 
-            self.add_error(
-                LexerError(f'Unknown token "{self.current()}" at position {self.pos}')
-            )
-            self.advance()
+                if possible_token is None:
+                    continue
+
+                # found token
+                tokens.append(possible_token)
+                succeeded = True
+                break
+
+            if not succeeded:
+                self.add_error(
+                    LexerError(
+                        f'Unknown token "{self.current()}" at position {self.pos}'
+                    )
+                )
+                self.advance()
 
         return tokens

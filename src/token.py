@@ -3,6 +3,7 @@ from enum import Enum, auto
 
 class TokenType(Enum):
     NUMBER = auto()
+    IDENTF = auto()
 
     PLUS = auto()
     MINUS = auto()
