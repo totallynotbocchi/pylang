@@ -41,5 +41,13 @@ class Stmt:
 
 
 @dataclass
+class IfStmt(Stmt):
+    condition: Expr
+    main_branch: list[Stmt | Expr]
+    elsif_branches: dict[Expr, list[Stmt | Expr]]  # maps condition -> block
+    else_branch: list[Stmt | Expr]
+
+
+@dataclass
 class Program(Stmt):
-    root: Stmt
+    root: list[Stmt | Expr]

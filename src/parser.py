@@ -1,16 +1,37 @@
 import logging
 
-from src.node import BinaryExpr, Expr, NumberExpr, Program, Stmt, VariableExpr
+from ansimarkup import parse
+
+from src.node import BinaryExpr, Expr, IfStmt, NumberExpr, Program, Stmt, VariableExpr
 from src.token import Token, TokenType
 
 logging.basicConfig(level=logging.DEBUG)
 
 
+class ParserError(Exception):
+    def __init__(self, message: str) -> None:
+        self.message: str = message
+
+    def __repr__(self) -> str:
+        return parse(f"<red>Parser Error<red>: {self.message}")
+
+
 class Parser:
     def __init__(self, tokens: list[Token] = []) -> None:
-        self.tree: Program = Program(Stmt())
         self.tokens: list[Token] = tokens
         self.pos: int = 0
+
+        self.tree: Program = Program([])
+
+        self.errors: list[ParserError] = []
+
+    def is_at_end(self) -> bool:
+        return (
+            self.pos >= len(self.tokens) or self.tokens[self.pos].type == TokenType.EOF
+        )
+
+    def add_error(self, error: ParserError) -> None:
+        self.errors.append(error)
 
     # look at the next token in the stream
     def peek(self, n: int = 1) -> Token | None:
@@ -31,6 +52,8 @@ class Parser:
 
         return self.tokens[self.pos]
 
+    # handle basic types, like variable, number or etc. also handles
+    # parentheses
     def handle_primary(self) -> Expr | None:
         prim: Token | None = self.current()
 
@@ -61,6 +84,7 @@ class Parser:
         # by this point, its not a primary
         return None
 
+    # handle multiplication expressions
     def handle_mult(self) -> Expr | None:
         # check if the current value is a term/factor (like a in a * b)
         left_expr = self.handle_primary()
@@ -93,6 +117,7 @@ class Parser:
         # return the operation
         return left_expr
 
+    # handle addition expressions
     def handle_addition(self) -> Expr | None:
         # check if left is something like a * b in a*b+c
         left_expr = self.handle_mult()
@@ -104,7 +129,7 @@ class Parser:
         # get the new token
         current = self.current()
 
-        # parse until we run out of multiplication symbols
+        # parse until we run out of addition symbols
         while current is not None and current.type is TokenType.PLUS:
             self.advance()  # consume +
             right_expr = self.handle_mult()
@@ -129,14 +154,93 @@ class Parser:
         # --> factor/term
         return left_expr
 
+    # handle expressions that evaluate to something
     def handle_expr(self) -> Expr | None:
         return self.handle_addition()
 
+    def handle_if(self) -> IfStmt | None:
+        # get the current token
+        current = self.current()
+        if current is None:
+            return None
+
+        # not even an "if" statement if theres no "if"
+        if current.type is not TokenType.KW_IF:
+            return None
+
+        # we should have an if statement, so eat this keyword
+        self.advance()
+
+        # next should be an expression for the condition,
+        # if it isnt, this is invalid syntax
+        expr = self.handle_expr()
+        if expr is None:
+            return None
+
+        # check for "then", notice "handle_expr" leaves us at the next token after the expr
+        next_token = self.current()
+
+        # if there isnt any "then", thats a syntax error
+        if next_token is None or next_token.type is not TokenType.KW_THEN:
+            return None
+
+        # eat "then" and get the blocks until there is "end"
+        self.advance()
+        current = self.current()
+
+        main_branch: list[Expr | Stmt] = []
+        while current is not None and current.type is not TokenType.KW_END:
+            # return nothing bc the program stopped before "end"
+            if current is None:
+                return None
+
+            # handle nested expressions/
+            nested_expr = self.handle_expr()
+            if nested_expr is not None:
+                main_branch.append(nested_expr)
+            else:
+                # handle nested statements if the line is not an expression
+                nested_stmt = self.handle_stmt()
+                if nested_stmt is not None:
+                    main_branch.append(nested_stmt)
+
+            # update values
+            self.advance()
+            current = self.current()
+
+        # eat the "end"
+        self.advance()
+
+        # return the statement block
+        stmt = IfStmt(
+            condition=expr, main_branch=main_branch, else_branch=[], elsif_branches={}
+        )
+        return stmt
+
+    # handle statements that run instructions
+    def handle_stmt(self) -> Stmt | None:
+        # check if its an if statement
+        if_stmt = self.handle_if()
+        if if_stmt is not None:
+            return if_stmt
+
     # return the parsed tree
     def get_ast(self) -> Program:
-        mult = self.handle_expr()
+        while not self.is_at_end():
+            # check if its an expression
+            expr = self.handle_expr()
+            if expr is not None:
+                self.tree.root.append(expr)
+                continue
 
-        if mult is not None:
-            self.tree.root = mult  # type: ignore
+            # if its not an expression, check if its a statement instead
+            stmt = self.handle_stmt()
+            if stmt is not None:
+                self.tree.root.append(stmt)
+                continue
+
+            # by this point, we dont know what it is
+            self.add_error(ParserError(f"Invalid token: {self.current()}"))
+            self.advance()  # skip it
 
         return self.tree

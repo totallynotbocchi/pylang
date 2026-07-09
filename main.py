@@ -6,11 +6,14 @@ from src.parser import Parser
 
 def main():
     # lex code
-    lexer = Lexer(source="(a + b)*c")
+    lexer = Lexer(source="if x + 2 then end")
 
     # parse code
     parser = Parser(lexer.get_tokens())
     pprint(parser.get_ast())
+
+    for err in parser.errors:
+        print(err)
 
 
 if __name__ == "__main__":
