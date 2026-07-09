@@ -4,6 +4,7 @@ from enum import Enum, auto, unique
 @unique
 class TokenType(Enum):
     EOF = auto()
+    SEMICOL = auto()
 
     NUMBER = auto()
     IDENTF = auto()

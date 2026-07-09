@@ -2,7 +2,16 @@ import logging
 
 from ansimarkup import parse
 
-from src.node import BinaryExpr, Expr, IfStmt, NumberExpr, Program, Stmt, VariableExpr
+from src.node import (
+    BinaryExpr,
+    Expr,
+    ExprStmt,
+    IfStmt,
+    NumberExpr,
+    Program,
+    Stmt,
+    VariableExpr,
+)
 from src.token import Token, TokenType
 
 logging.basicConfig(level=logging.DEBUG)
@@ -158,6 +167,8 @@ class Parser:
     def handle_expr(self) -> Expr | None:
         return self.handle_addition()
 
+    # handle if conditions, looks like:
+    #   if <expr> then <blocks>* end
     def handle_if(self) -> IfStmt | None:
         # get the current token
         current = self.current()
@@ -223,6 +234,16 @@ class Parser:
         if_stmt = self.handle_if()
         if if_stmt is not None:
             return if_stmt
+
+        # check if its an expression (theyre allowed as statements)
+        expr = self.handle_expr()
+        if expr is not None:
+            # mark semicolons as statement enders
+            current = self.current()
+            if current is not None and current.type is TokenType.SEMICOL:
+                self.advance()
+
+            return ExprStmt(expr)
 
     # return the parsed tree
     def get_ast(self) -> Program:

@@ -14,6 +14,7 @@ SINGLE_CHAR_SYMBOLS = {
     "=": TokenType.EQUAL,
     "(": TokenType.LPAREN,
     ")": TokenType.RPAREN,
+    ";": TokenType.SEMICOL,
 }
 
 DOUBLE_CHAR_SYMBOLS = {

@@ -49,5 +49,10 @@ class IfStmt(Stmt):
 
 
 @dataclass
+class ExprStmt(Stmt):
+    expr: Expr
+
+
+@dataclass
 class Program(Stmt):
     root: list[Stmt | Expr]
