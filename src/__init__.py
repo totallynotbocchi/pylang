@@ -1,2 +1,4 @@
-from src.lexer import Lexer
-from src.token import Token, TokenType
+from src.lexer import *
+from src.node import *
+from src.parser import *
+from src.token import *

@@ -1,14 +1,16 @@
 from pprint import pprint
 
-import src.lexer as lx
+from src.lexer import Lexer
+from src.parser import Parser
 
 
 def main():
-    lexer = lx.Lexer(source="x+=2")
-    pprint(lexer.get_tokens())
+    # lex code
+    lexer = Lexer(source="(a + b)*c")
 
-    for err in lexer.errors:
-        print(err)
+    # parse code
+    parser = Parser(lexer.get_tokens())
+    pprint(parser.get_ast())
 
 
 if __name__ == "__main__":

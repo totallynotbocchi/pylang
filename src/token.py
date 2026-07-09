@@ -1,7 +1,10 @@
-from enum import Enum, auto
+from enum import Enum, auto, unique
 
 
+@unique
 class TokenType(Enum):
+    EOF = auto()
+
     NUMBER = auto()
     IDENTF = auto()
 
@@ -11,10 +14,19 @@ class TokenType(Enum):
     DIV = auto()
 
     EQUAL = auto()
+    DOUBLE_EQUAL = auto()
     PLUS_EQUAL = auto()
     MINUS_EQUAL = auto()
     TIMES_EQUAL = auto()
     DIV_EQUAL = auto()
+
+    LPAREN = auto()
+    RPAREN = auto()
+
+    KW_IF = auto()
+    KW_ELSIF = auto()
+    KW_THEN = auto()
+    KW_END = auto()
 
 
 class Token:

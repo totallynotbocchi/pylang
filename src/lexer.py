@@ -6,19 +6,29 @@ from src.token import Token, TokenType
 
 logging.basicConfig(level=logging.DEBUG)
 
-SINGLE_CHAR_OPS = {
+SINGLE_CHAR_SYMBOLS = {
     "+": TokenType.PLUS,
     "-": TokenType.MINUS,
     "*": TokenType.TIMES,
     "/": TokenType.DIV,
     "=": TokenType.EQUAL,
+    "(": TokenType.LPAREN,
+    ")": TokenType.RPAREN,
 }
 
-DOUBLE_CHAR_OPS = {
+DOUBLE_CHAR_SYMBOLS = {
     "+=": TokenType.PLUS_EQUAL,
     "-=": TokenType.MINUS_EQUAL,
     "*=": TokenType.TIMES_EQUAL,
     "/=": TokenType.DIV_EQUAL,
+    "==": TokenType.DOUBLE_EQUAL,
+}
+
+KEYWORDS = {
+    "if": TokenType.KW_IF,
+    "elsif": TokenType.KW_ELSIF,
+    "then": TokenType.KW_THEN,
+    "end": TokenType.KW_END,
 }
 
 
@@ -66,7 +76,7 @@ class Lexer:
         self.pos += times
 
     # handle the lexing case of (positive) numbers
-    # WARN: this function stops at the first non digit
+    # WARN: this function stSYMBOLS at the first non digit
     #
     # example:
     # "1"234
@@ -119,15 +129,15 @@ class Lexer:
         # combined substring
         op: str = char + next_char
 
-        # check for double ops like +=, == first
-        toktype = DOUBLE_CHAR_OPS.get(op)
+        # check for double SYMBOLS like +=, == first
+        toktype = DOUBLE_CHAR_SYMBOLS.get(op)
         if toktype is not None:
             self.advance(2)  # eat the two numbers
             tok = Token(value=op, type=toktype)
             return tok
 
-        # check for single ops (on char, not on op anymore)
-        toktype = SINGLE_CHAR_OPS.get(char)
+        # check for single SYMBOLS (on char, not on op anymore)
+        toktype = SINGLE_CHAR_SYMBOLS.get(char)
         if toktype is not None:
             self.advance()
             tok = Token(value=char, type=toktype)
@@ -135,7 +145,7 @@ class Lexer:
 
         return None
 
-    def handle_identf(self) -> Token | None:
+    def handle_identf_or_keyword(self) -> Token | None:
         char = self.current()
 
         if char is None or not char.isidentifier():
@@ -149,13 +159,22 @@ class Lexer:
 
             char = self.current()
 
+        # build the string
+        identf_str: str = "".join(identf)
+
+        # handle keywords
+        keyword_type = KEYWORDS.get(identf_str)
+        if keyword_type is not None:
+            tok = Token(value=identf_str, type=keyword_type)
+            return tok
+
         # return the identifier we made
-        tok = Token(value="".join(identf), type=TokenType.IDENTF)
+        tok = Token(value=identf_str, type=TokenType.IDENTF)
         return tok
 
     # the "main" function of the lexer
     def get_tokens(self) -> list[Token]:
-        logging.info(f"Lexing code:\n```\n{self.source}\n```")
+        logging.info(parse(f"Lexing code:\n<i>\n{self.source}\n</i>"))
 
         tokens: list[Token] = []
 
@@ -167,7 +186,11 @@ class Lexer:
 
             # try all the different possible cases,
             # all of the functions return a token if they match, or None if they dont
-            tests = [self.handle_number, self.handle_operator, self.handle_identf]
+            tests = [
+                self.handle_number,
+                self.handle_operator,
+                self.handle_identf_or_keyword,
+            ]
             succeeded = False
 
             for test in tests:
@@ -189,4 +212,6 @@ class Lexer:
                 )
                 self.advance()
 
+        # return all collected tokens
+        tokens.append(Token(value="\0", type=TokenType.EOF))
         return tokens
