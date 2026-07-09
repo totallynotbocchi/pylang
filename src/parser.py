@@ -200,26 +200,22 @@ class Parser:
         current = self.current()
 
         main_branch: list[Expr | Stmt] = []
-        while current is not None and current.type is not TokenType.KW_END:
-            # return nothing bc the program stopped before "end"
-            if current is None:
-                return None
-
-            # handle nested expressions/
-            nested_expr = self.handle_expr()
-            if nested_expr is not None:
-                main_branch.append(nested_expr)
+        while (
+            current is not None
+            and current.type is not TokenType.KW_END
+            and current.type is not TokenType.EOF
+        ):
+            # handle nested statements
+            nested_stmt = self.handle_stmt()
+            if nested_stmt is not None:
+                main_branch.append(nested_stmt)
             else:
-                # handle nested statements if the line is not an expression
-                nested_stmt = self.handle_stmt()
-                if nested_stmt is not None:
-                    main_branch.append(nested_stmt)
+                raise Exception("This must be a statement")
 
             # update values
-            self.advance()
             current = self.current()
 
-        # eat the "end"
+        # eat the "end" so this function should stop at the next token after "ens"
         self.advance()
 
         # return the statement block
@@ -241,20 +237,14 @@ class Parser:
             # mark semicolons as statement enders
             current = self.current()
             if current is not None and current.type is TokenType.SEMICOL:
-                self.advance()
+                self.advance()  # eat ;
 
             return ExprStmt(expr)
 
     # return the parsed tree
     def get_ast(self) -> Program:
         while not self.is_at_end():
-            # check if its an expression
-            expr = self.handle_expr()
-            if expr is not None:
-                self.tree.root.append(expr)
-                continue
-
-            # if its not an expression, check if its a statement instead
+            # add statements
             stmt = self.handle_stmt()
             if stmt is not None:
                 self.tree.root.append(stmt)
