@@ -30,6 +30,7 @@ KEYWORDS = {
     "elsif": TokenType.KW_ELSIF,
     "then": TokenType.KW_THEN,
     "end": TokenType.KW_END,
+    "let": TokenType.KW_LET,
 }
 
 

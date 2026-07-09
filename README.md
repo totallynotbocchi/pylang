@@ -1,2 +1,2 @@
 # pyLang
-idk
+cool language made in python

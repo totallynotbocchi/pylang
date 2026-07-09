@@ -28,6 +28,7 @@ class TokenType(Enum):
     KW_ELSIF = auto()
     KW_THEN = auto()
     KW_END = auto()
+    KW_LET = auto()
 
 
 class Token:

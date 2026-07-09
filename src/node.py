@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.token import TokenType
 
@@ -32,6 +32,12 @@ class BinaryExpr(Expr):
     right: Expr
 
 
+@dataclass
+class UnaryExpr(Expr):
+    value: Expr
+    op: TokenType
+
+
 # statements
 
 
@@ -41,11 +47,19 @@ class Stmt:
 
 
 @dataclass
+class Program(Stmt):
+    root: list[Stmt | Expr] = field(default_factory=list)
+
+
+@dataclass
 class IfStmt(Stmt):
     condition: Expr
     main_branch: list[Stmt | Expr]
-    elsif_branches: dict[Expr, list[Stmt | Expr]]  # maps condition -> block
-    else_branch: list[Stmt | Expr]
+
+    # maps condition -> block
+    elsif_branches: dict[Expr, list[Stmt | Expr]] = field(default_factory=dict)
+
+    else_branch: list[Stmt | Expr] = field(default_factory=list)
 
 
 @dataclass
@@ -54,5 +68,6 @@ class ExprStmt(Stmt):
 
 
 @dataclass
-class Program(Stmt):
-    root: list[Stmt | Expr]
+class VarDeclStmt(Stmt):
+    name: str
+    initial_value: Expr | None = None
