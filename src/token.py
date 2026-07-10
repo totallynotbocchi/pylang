@@ -32,9 +32,11 @@ class TokenType(Enum):
 
 
 class Token:
-    def __init__(self, value: str, type: TokenType) -> None:
+    # info is (line, char)
+    def __init__(self, value: str, type: TokenType, line: int) -> None:
         self.value: str = value
+        self.line: int = line
         self.type: TokenType = type
 
     def __repr__(self) -> str:
-        return f'Token {{ value="{self.value}", type="{str(self.type)}" }}'
+        return f'Token {{ value="{self.value}", type="{str(self.type)}", line={self.line} }}'

@@ -47,6 +47,8 @@ class Lexer:
         self.source: str = source
         self.pos: int = 0
 
+        self.current_line: int = 0
+
         self.errors: list[LexerError] = []
 
     def add_error(self, error: LexerError) -> None:
@@ -116,7 +118,7 @@ class Lexer:
             char = self.current()
 
         # build token
-        tok = Token(value="".join(whole_number), type=TokenType.NUMBER)
+        tok = self.make_token("".join(whole_number), TokenType.NUMBER)
         return tok
 
     def handle_operator(self) -> Token | None:
@@ -135,14 +137,14 @@ class Lexer:
         toktype = DOUBLE_CHAR_SYMBOLS.get(op)
         if toktype is not None:
             self.advance(2)  # eat the two numbers
-            tok = Token(value=op, type=toktype)
+            tok = self.make_token(op, toktype)
             return tok
 
         # check for single SYMBOLS (on char, not on op anymore)
         toktype = SINGLE_CHAR_SYMBOLS.get(char)
         if toktype is not None:
             self.advance()
-            tok = Token(value=char, type=toktype)
+            tok = self.make_token(char, toktype)
             return tok
 
         return None
@@ -167,11 +169,15 @@ class Lexer:
         # handle keywords
         keyword_type = KEYWORDS.get(identf_str)
         if keyword_type is not None:
-            tok = Token(value=identf_str, type=keyword_type)
+            tok = self.make_token(identf_str, keyword_type)
             return tok
 
         # return the identifier we made
-        tok = Token(value=identf_str, type=TokenType.IDENTF)
+        tok = self.make_token(identf_str, TokenType.IDENTF)
+        return tok
+
+    def make_token(self, value: str, type: TokenType) -> Token:
+        tok = Token(value=value, type=type, line=self.current_line)
         return tok
 
     # the "main" function of the lexer
@@ -181,8 +187,11 @@ class Lexer:
         tokens: list[Token] = []
 
         while not self.is_oob():
+            # handle newlines
+            if self.current() == "\n":  # type: ignore
+                self.current_line += 1
             # skip whitespaces
-            if self.current().isspace():  # type: ignore
+            elif self.current().isspace():  # type: ignore
                 self.advance()
                 continue
 
@@ -215,5 +224,5 @@ class Lexer:
                 self.advance()
 
         # return all collected tokens
-        tokens.append(Token(value="\0", type=TokenType.EOF))
+        tokens.append(self.make_token("\0", TokenType.EOF))
         return tokens

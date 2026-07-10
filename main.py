@@ -6,7 +6,7 @@ from src.parser import Parser
 
 def main():
     # lex code
-    lexer = Lexer(source="let x=3; if x + 2 then x + 3 end")
+    lexer = Lexer(source="let x")
 
     # parse code
     parser = Parser(lexer.get_tokens())
