@@ -10,19 +10,16 @@ class Expr:
     pass
 
 
+# numbers, like "2"
 @dataclass
 class NumberExpr(Expr):
     value: str
 
 
+# variable calling, like "x"
 @dataclass
 class VariableExpr(Expr):
     name: str
-
-
-@dataclass
-class GroupedExpr(Expr):
-    expr: Expr
 
 
 @dataclass
@@ -32,6 +29,7 @@ class BinaryExpr(Expr):
     right: Expr
 
 
+# values with a preceding operator, like "!x" (not x) or "-y" (negative y)
 @dataclass
 class UnaryExpr(Expr):
     value: Expr
@@ -62,11 +60,15 @@ class IfStmt(Stmt):
     else_branch: list[Stmt | Expr] = field(default_factory=list)
 
 
+# expressions used standalone, like:
+#   x+2; x+3
 @dataclass
-class ExprStmt(Stmt):
+class ExprStmt(Stmt, Expr):
     expr: Expr
 
 
+# variable declaration, like:
+#   let x = y;
 @dataclass
 class VarDeclStmt(Stmt):
     name: str

@@ -34,17 +34,6 @@ MULTIPLICATIN_SYMBOLS = [
 ]
 
 
-class ParserError(Exception):
-    def __init__(self, message: str, line: int) -> None:
-        self.line = line
-        self.message: str = message
-
-    def __repr__(self) -> str:
-        return parse(
-            f"Parsing error at line {self.line}:\n<red>Parser Error</red>: {self.message}"
-        )
-
-
 class SyntaxError(Exception):
     def __init__(self, message: str, line: int) -> None:
         self.line = line
@@ -64,14 +53,14 @@ class Parser:
 
         self.tree: Program = Program()
 
-        self.errors: list[ParserError | SyntaxError] = []
+        self.errors: list[SyntaxError] = []
 
     def is_at_end(self) -> bool:
         return (
             self.pos >= len(self.tokens) or self.tokens[self.pos].type == TokenType.EOF
         )
 
-    def add_error(self, error: ParserError | SyntaxError) -> None:
+    def add_error(self, error: SyntaxError) -> None:
         self.errors.append(error)
 
     def get_current_line(self) -> int:
@@ -127,11 +116,9 @@ class Parser:
                 # if theres no ")" after the entire expression
                 current = self.current()
                 if current is None or current.type != TokenType.RPAREN:
-                    self.add_error(
-                        SyntaxError(
-                            'Missing closing ")" after expression',
-                            self.get_current_line(),
-                        )
+                    raise SyntaxError(
+                        'Missing closing ")" after expression',
+                        self.get_current_line(),
                     )
 
                 self.advance()  # eat ")"
@@ -155,12 +142,9 @@ class Parser:
             if expr is None:
                 # syntax error, "- <nothing>"?
 
-                self.add_error(
-                    SyntaxError(
-                        "Missing expression after unary minus.", self.get_current_line()
-                    )
+                raise SyntaxError(
+                    "Missing expression after unary minus.", self.get_current_line()
                 )
-                return None
 
             unary = UnaryExpr(value=expr, op=symbol.type)
             return unary
@@ -191,7 +175,9 @@ class Parser:
             # theres no right, but one is expected, because we have:
             # "left_expr * [HERE]""
             if right_expr is None:
-                raise Exception("Invalid")
+                raise SyntaxError(
+                    "Missing right side of multiplication", self.get_current_line()
+                )
 
             # do left associativity
             # a * b = (a*b)
@@ -229,7 +215,9 @@ class Parser:
             # theres no right, but one is expected, because we have:
             # "left_expr + [HERE]""
             if right_expr is None:
-                raise Exception("Invalid")
+                raise SyntaxError(
+                    "Missing right side of addition", self.get_current_line()
+                )
 
             # do left associativity
             # a + b = (a+b)
@@ -283,10 +271,9 @@ class Parser:
 
         # if there isnt any "then", thats a syntax error
         if next_token is None or next_token.type is not TokenType.KW_THEN:
-            self.add_error(
-                SyntaxError('Expected "then" after expression', self.get_current_line())
+            raise SyntaxError(
+                'Expected "then" after expression', self.get_current_line()
             )
-            return None
 
         # eat "then" and get the blocks until there is "end"
         self.advance()
@@ -301,13 +288,10 @@ class Parser:
             # handle nested statements
             nested_stmt = self.handle_stmt()
             if nested_stmt is None:
-                self.add_error(
-                    ParserError(
-                        "Expected statement in conditional block.",
-                        self.get_current_line(),
-                    )
+                raise SyntaxError(
+                    "Expected statement in conditional block.",
+                    self.get_current_line(),
                 )
-                return None
 
             main_branch.append(nested_stmt)
 
@@ -339,14 +323,10 @@ class Parser:
         self.advance()
         identf_token = self.current()
         if identf_token is None or identf_token.type is not TokenType.IDENTF:
-            # syntax error
-            self.add_error(
-                SyntaxError(
-                    "Missing identifier for variable declaration.",
-                    self.get_current_line(),
-                )
+            raise SyntaxError(
+                "Missing identifier for variable declaration.",
+                self.get_current_line(),
             )
-            return None
 
         # dont add any initial value (and ignore equals) if next is a semicolon
         peek = self.peek()
@@ -359,13 +339,10 @@ class Parser:
         self.advance()
         current = self.current()
         if current is None or current.type is not TokenType.EQUAL:
-            self.add_error(
-                SyntaxError(
-                    "Missing equal sign or semicolon after identifier.",
-                    self.get_current_line(),
-                )
+            raise SyntaxError(
+                "Missing equal sign or semicolon after identifier.",
+                self.get_current_line(),
             )
-            return None
 
         self.advance()  # eat the =
 
@@ -373,12 +350,9 @@ class Parser:
         # remeber, this code starts after the equal sign
         initial_value: Expr | None = self.handle_expr()
         if initial_value is None:
-            self.add_error(
-                SyntaxError(
-                    "Missing expression after equals sign.", self.get_current_line()
-                )
+            raise SyntaxError(
+                "Missing expression after equals sign.", self.get_current_line()
             )
-            return None
 
         # return what was made until now
         # remember handle_expr() left the code right after the expression
@@ -406,13 +380,10 @@ class Parser:
                 if current.type is TokenType.SEMICOL:
                     self.advance()  # eat ;
                 else:
-                    self.add_error(
-                        SyntaxError(
-                            "Missing semicolon after expression in statement.",
-                            self.get_current_line(),
-                        )
+                    raise SyntaxError(
+                        "Missing semicolon after expression in statement.",
+                        self.get_current_line(),
                     )
-                    # continue code from where it left off
 
             return ExprStmt(expr)
 
@@ -420,10 +391,14 @@ class Parser:
     def get_ast(self) -> Program:
         while not self.is_at_end():
             # add statements
-            stmt = self.handle_stmt()
-            if stmt is not None:
-                self.tree.root.append(stmt)
-                continue
+            try:
+                stmt = self.handle_stmt()
+                if stmt is not None:
+                    self.tree.root.append(stmt)
+            except SyntaxError as e:
+                print(e)
+                self.add_error(e)
+                self.advance()
 
             # break out if theres no current character, though is_at_end should already handle it
             current = self.current()
@@ -436,7 +411,7 @@ class Parser:
 
             # by this point, we dont know what the token is
             self.add_error(
-                ParserError(f"Invalid token: {self.current()}", self.get_current_line())
+                SyntaxError(f"Invalid token: {self.current()}", self.get_current_line())
             )
             self.advance()  # skip it
 
